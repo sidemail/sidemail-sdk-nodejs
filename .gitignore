@@ -1,4 +1,1 @@
-.git
-node_modules
-yarn-error.log
-coverage
+*.env

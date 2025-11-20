@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sidemail"
+version = "0.1.0"
+description = "Sidemail Python library for email sending and API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{ name = "Sidemail.io Development Team" }]
+dependencies = ["httpx>=0.24.0"]
+keywords = ["sidemail", "email", "api", "client"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
