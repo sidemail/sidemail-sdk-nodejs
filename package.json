@@ -1,6 +1,6 @@
 {
 	"name": "sidemail",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "Node.js library for the Sidemail API.",
 	"main": "index.js",
 	"repository": {
