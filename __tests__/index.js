@@ -110,11 +110,16 @@ test("Find a contact", async () => {
 test("List contacts", async () => {
 	const sidemail = configureSidemail({ apiKey: "123" });
 	sidemail.contacts.performApiRequest = jest.fn(() =>
-		Promise.resolve({ is: "ok" })
+		Promise.resolve({
+			data: [{ id: 1 }],
+			hasMore: false,
+			paginationCursorNext: null,
+		})
 	);
 
-	const response = await sidemail.contacts.list();
-	expect(response.is).toBe("ok");
+	const result = await sidemail.contacts.list();
+	expect(result.data).toEqual([{ id: 1 }]);
+	expect(result.hasMore).toBe(false);
 	expect(sidemail.contacts.performApiRequest).toHaveBeenCalledTimes(1);
 	expect(sidemail.contacts.performApiRequest).toHaveBeenCalledWith(
 		`contacts?`,
@@ -126,13 +131,19 @@ test("List contacts", async () => {
 test("List contacts pagination", async () => {
 	const sidemail = configureSidemail({ apiKey: "123" });
 	sidemail.contacts.performApiRequest = jest.fn(() =>
-		Promise.resolve({ is: "ok" })
+		Promise.resolve({
+			data: [{ id: 2 }],
+			hasMore: true,
+			paginationCursorNext: "456",
+		})
 	);
 
-	const response = await sidemail.contacts.list({
+	const result = await sidemail.contacts.list({
 		paginationCursorNext: "123",
 	});
-	expect(response.is).toBe("ok");
+	expect(result.data).toEqual([{ id: 2 }]);
+	expect(result.hasMore).toBe(true);
+	expect(result.paginationCursorNext).toBe("456");
 	expect(sidemail.contacts.performApiRequest).toHaveBeenCalledTimes(1);
 	expect(sidemail.contacts.performApiRequest).toHaveBeenCalledWith(
 		`contacts?paginationCursorNext=123`,
@@ -156,4 +167,105 @@ test("Delete a contact", async () => {
 		null,
 		expect.objectContaining({ method: "DELETE" })
 	);
+});
+
+test("Auto-pagination with autoPagingEach", async () => {
+	const sidemail = configureSidemail({ apiKey: "123" });
+
+	// Mock three pages of results
+	sidemail.contacts.performApiRequest = jest
+		.fn()
+		.mockResolvedValueOnce({
+			data: [{ id: 1 }, { id: 2 }],
+			hasMore: true,
+			paginationCursorNext: "cursor2",
+		})
+		.mockResolvedValueOnce({
+			data: [{ id: 3 }, { id: 4 }],
+			hasMore: true,
+			paginationCursorNext: "cursor3",
+		})
+		.mockResolvedValueOnce({
+			data: [{ id: 5 }],
+			hasMore: false,
+			paginationCursorNext: null,
+		});
+
+	const result = await sidemail.contacts.list();
+	const collected = [];
+
+	await result.autoPagingEach((contact) => {
+		collected.push(contact);
+	});
+
+	expect(collected).toEqual([
+		{ id: 1 },
+		{ id: 2 },
+		{ id: 3 },
+		{ id: 4 },
+		{ id: 5 },
+	]);
+	expect(sidemail.contacts.performApiRequest).toHaveBeenCalledTimes(3);
+});
+
+test("Auto-pagination with async iterator", async () => {
+	const sidemail = configureSidemail({ apiKey: "123" });
+
+	// Mock two pages of results
+	sidemail.contacts.performApiRequest = jest
+		.fn()
+		.mockResolvedValueOnce({
+			data: [{ id: 1 }, { id: 2 }],
+			hasMore: true,
+			paginationCursorNext: "cursor2",
+		})
+		.mockResolvedValueOnce({
+			data: [{ id: 3 }],
+			hasMore: false,
+			paginationCursorNext: null,
+		});
+
+	const result = await sidemail.contacts.list();
+	const collected = [];
+
+	for await (const contact of result) {
+		collected.push(contact);
+	}
+
+	expect(collected).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+	expect(sidemail.contacts.performApiRequest).toHaveBeenCalledTimes(2);
+});
+
+test("Auto-pagination for email.search", async () => {
+	const sidemail = configureSidemail({ apiKey: "123" });
+
+	// Mock two pages of results
+	sidemail.email.performApiRequest = jest
+		.fn()
+		.mockResolvedValueOnce({
+			data: [{ id: "email1" }, { id: "email2" }],
+			hasMore: true,
+			paginationCursorNext: "cursor2",
+		})
+		.mockResolvedValueOnce({
+			data: [{ id: "email3" }],
+			hasMore: false,
+			paginationCursorNext: null,
+		});
+
+	const result = await sidemail.email.search({
+		query: { status: "delivered" },
+	});
+	const collected = [];
+
+	for await (const email of result) {
+		collected.push(email);
+	}
+
+	expect(collected).toEqual([
+		{ id: "email1" },
+		{ id: "email2" },
+		{ id: "email3" },
+	]);
+	expect(sidemail.email.performApiRequest).toHaveBeenCalledTimes(2);
 });

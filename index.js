@@ -3,6 +3,8 @@ const fetch = require("node-fetch");
 const http = require("http");
 const https = require("https");
 
+const { version } = require("./package.json");
+
 const { SidemailLocalError, SidemailApiError } = require("./errors");
 
 const DEFAULT_HOST = "https://api.sidemail.io";
@@ -10,6 +12,53 @@ const DEFAULT_BASE_PATH = "/v1/";
 
 const httpAgent = new http.Agent({ keepAlive: true });
 const httpsAgent = new https.Agent({ keepAlive: true });
+
+function createPaginatedResult(firstPage, fetchPage) {
+	return {
+		data: firstPage.data,
+		hasMore: firstPage.hasMore,
+		paginationCursorPrev: firstPage.paginationCursorPrev,
+		paginationCursorNext: firstPage.paginationCursorNext,
+
+		async autoPagingEach(callback) {
+			let page = firstPage;
+
+			while (true) {
+				if (page && Array.isArray(page.data)) {
+					for (const item of page.data) {
+						// eslint-disable-next-line no-await-in-loop
+						await callback(item);
+					}
+				}
+
+				if (!page || !page.hasMore || !page.paginationCursorNext) {
+					break;
+				}
+
+				// eslint-disable-next-line no-await-in-loop
+				page = await fetchPage(page.paginationCursorNext);
+			}
+		},
+
+		async *[Symbol.asyncIterator]() {
+			let page = firstPage;
+
+			while (true) {
+				if (page && Array.isArray(page.data)) {
+					for (const item of page.data) {
+						yield item;
+					}
+				}
+
+				if (!page || !page.hasMore || !page.paginationCursorNext) {
+					break;
+				}
+
+				page = await fetchPage(page.paginationCursorNext);
+			}
+		},
+	};
+}
 
 class ContactMethods {
 	constructor({ performApiRequest }) {
@@ -39,15 +88,21 @@ class ContactMethods {
 	}
 
 	async list({ paginationCursorNext } = {}) {
-		let query = ``;
+		const fetchPage = async (cursor) => {
+			let query = ``;
 
-		if (paginationCursorNext) {
-			query += `paginationCursorNext=${paginationCursorNext}`;
-		}
+			if (cursor) {
+				query += `paginationCursorNext=${cursor}`;
+			}
 
-		return this.performApiRequest(`contacts?${query}`, null, {
-			method: "GET",
-		});
+			return this.performApiRequest(`contacts?${query}`, null, {
+				method: "GET",
+			});
+		};
+
+		const firstPage = await fetchPage(paginationCursorNext);
+
+		return createPaginatedResult(firstPage, fetchPage);
 	}
 
 	async delete({ emailAddress } = {}) {
@@ -72,8 +127,17 @@ class EmailMethods {
 		return this.performApiRequest("email/send", data, { method: "POST" });
 	}
 
-	async search(data) {
-		return this.performApiRequest("email/search", data, { method: "POST" });
+	async search(data = {}) {
+		const fetchPage = async (cursor) => {
+			const body = cursor ? { ...data, paginationCursorNext: cursor } : data;
+			return this.performApiRequest("email/search", body, {
+				method: "POST",
+			});
+		};
+
+		const firstPage = await fetchPage();
+
+		return createPaginatedResult(firstPage, fetchPage);
 	}
 
 	async get(id) {
@@ -118,6 +182,7 @@ class Sidemail {
 		this.apiKey = apiKey;
 		this.host = host;
 		this.performApiRequest = this.performApiRequest.bind(this);
+		this.version = version;
 
 		this.contacts = new ContactMethods({
 			performApiRequest: this.performApiRequest,
@@ -142,6 +207,7 @@ class Sidemail {
 				Accept: "application/json",
 				Authorization: "Bearer " + this.apiKey,
 				"Content-Type": "application/json",
+				"User-Agent": `sidemail-sdk-nodejs/${version}`,
 			},
 			agent: (_parsedURL) => {
 				return _parsedURL.protocol == "http:" ? httpAgent : httpsAgent;
