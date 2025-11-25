@@ -5,7 +5,7 @@
 	"main": "index.js",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/sidemail/sidemail-sdk-js"
+		"url": "https://github.com/sidemail/sidemail-sdk-nodejs"
 	},
 	"scripts": {
 		"test": "jest"
