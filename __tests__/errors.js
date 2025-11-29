@@ -1,25 +1,24 @@
-const { SidemailApiError, SidemailLocalError } = require("../errors");
+const { SidemailError } = require("../errors");
 
-describe("API error", () => {
-	test("Sets error details", () => {
-		const errorDetails = {
-			developerMessage: "Invalid paramaters",
-			errorCode: "paramaters-invalid",
+describe("SidemailError", () => {
+	test("Sets error details for API errors", () => {
+		const error = new SidemailError("Invalid parameters", {
+			httpStatus: 400,
+			errorCode: "parameters-invalid",
 			moreInfo: "http://sidemail.io/docs",
-		};
-		const error = new SidemailApiError(errorDetails);
-		expect(error.name).toBe("SidemailApiError");
-		expect(error.developerMessage).toBe(errorDetails.developerMessage);
-		expect(error.message).toBe(errorDetails.developerMessage);
-		expect(error.errorCode).toBe(errorDetails.errorCode);
-		expect(error.moreInfo).toBe(errorDetails.moreInfo);
+		});
+		expect(error.name).toBe("SidemailError");
+		expect(error.message).toBe("Invalid parameters");
+		expect(error.httpStatus).toBe(400);
+		expect(error.errorCode).toBe("parameters-invalid");
+		expect(error.moreInfo).toBe("http://sidemail.io/docs");
 	});
-});
 
-describe("Local error", () => {
-	test("Sets error details", () => {
-		const error = new SidemailLocalError("Error!");
-		expect(error.name).toBe("SidemailLocalError");
-		expect(error.message).toBe("Error!");
+	test("Works with just a message", () => {
+		const error = new SidemailError("Something went wrong");
+		expect(error.name).toBe("SidemailError");
+		expect(error.message).toBe("Something went wrong");
+		expect(error.httpStatus).toBeUndefined();
+		expect(error.errorCode).toBeUndefined();
 	});
 });

@@ -64,37 +64,6 @@ Learn more about Sidemail API:
 - [See all available API options](https://sidemail.io/docs/send-transactional-emails#discover-all-available-api-parameters)
 - [See all possible errors and error codes](https://sidemail.io/docs/send-transactional-emails#api-errors)
 
-## Auto-pagination
-
-The SDK provides automatic pagination for list and search endpoints that return paginated results. This allows you to iterate through all results without manually handling pagination cursors.
-
-### Async iterator style
-
-```javascript
-const result = await sidemail.contacts.list();
-
-for await (const contact of result) {
-	console.log(contact.emailAddress);
-	// Process each contact across all pages automatically
-}
-```
-
-### Callback style
-
-```javascript
-const result = await sidemail.contacts.list();
-
-await result.autoPagingEach(async (contact) => {
-	console.log(contact.emailAddress);
-	// Process each contact across all pages automatically
-});
-```
-
-**Supported methods:**
-
-- `sidemail.contacts.list()`
-- `sidemail.email.search()`
-
 ## Email sending examples
 
 ### Send password reset email template
@@ -167,6 +136,77 @@ await sidemail.sendEmail({
 	text: "Hello world! 👋",
 });
 ```
+
+## Error handling
+
+The SDK throws `SidemailError` for all errors. API errors include `message`, `httpStatus`, `errorCode`, and `moreInfo`.
+
+```javascript
+try {
+	await sidemail.sendEmail({
+		toAddress: "user@example.com",
+		fromAddress: "you@example.com",
+		subject: "Hello",
+		text: "Hello",
+	});
+} catch (err) {
+	if (err.name === "SidemailError") {
+		console.error(err.message, err.errorCode, err.httpStatus);
+	}
+}
+```
+
+## Attachments helper
+
+You can use the `fileToAttachment` helper to easily encode file data for attachments:
+
+```javascript
+const configureSidemail = require("sidemail");
+const sidemail = configureSidemail({ apiKey: "your-api-key" });
+
+const fs = require("fs");
+const pdfBuffer = fs.readFileSync("./invoice.pdf");
+const attachment = sidemail.fileToAttachment("invoice.pdf", pdfBuffer);
+
+await sidemail.sendEmail({
+	toAddress: "user@email.com",
+	fromAddress: "you@example.com",
+	subject: "Invoice",
+	text: "Invoice attached.",
+	attachments: [attachment],
+});
+```
+
+## Auto-pagination
+
+The SDK provides automatic pagination for list and search endpoints that return paginated results. This allows you to iterate through all results without manually handling pagination cursors.
+
+### Async iterator style
+
+```javascript
+const result = await sidemail.contacts.list();
+
+for await (const contact of result) {
+	console.log(contact.emailAddress);
+	// Process each contact across all pages automatically
+}
+```
+
+### Callback style
+
+```javascript
+const result = await sidemail.contacts.list();
+
+await result.autoPaginateEach(async (contact) => {
+	console.log(contact.emailAddress);
+	// Process each contact across all pages automatically
+});
+```
+
+**Supported methods:**
+
+- `sidemail.contacts.list()`
+- `sidemail.email.search()`
 
 ## Email methods
 
@@ -281,7 +321,8 @@ await sidemail.project.update({
 		logo: {
 			sizeWidth: 50,
 			href: "https://example.com",
-			file: "PHN2ZyBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGZpbGwtcnVsZT0iZXZlbm9kZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLW1pdGVybGltaXQ9IjIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJtMTIgNS43MmMtMi42MjQtNC41MTctMTAtMy4xOTgtMTAgMi40NjEgMCAzLjcyNSA0LjM0NSA3LjcyNyA5LjMwMyAxMi41NC4xOTQuMTg5LjQ0Ni4yODMuNjk3LjI4M3MuNTAzLS4wOTQuNjk3LS4yODNjNC45NzctNC44MzEgOS4zMDMtOC44MTQgOS4zMDMtMTIuNTQgMC01LjY3OC03LjM5Ni02Ljk0NC0xMC0yLjQ2MXoiIGZpbGwtcnVsZT0ibm9uemVybyIvPjwvc3ZnPg==",
+			file:
+				"PHN2ZyBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGZpbGwtcnVsZT0iZXZlbm9kZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLW1pdGVybGltaXQ9IjIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJtMTIgNS43MmMtMi42MjQtNC41MTctMTAtMy4xOTgtMTAgMi40NjEgMCAzLjcyNSA0LjM0NSA3LjcyNyA5LjMwMyAxMi41NC4xOTQuMTg5LjQ0Ni4yODMuNjk3LjI4M3MuNTAzLS4wOTQuNjk3LS4yODNjNC45NzctNC44MzEgOS4zMDMtOC44MTQgOS4zMDMtMTIuNTQgMC01LjY3OC03LjM5Ni02Ljk0NC0xMC0yLjQ2MXoiIGZpbGwtcnVsZT0ibm9uemVybyIvPjwvc3ZnPg==",
 		},
 		font: { name: "Acme" },
 		colors: { highlight: "#0000FF", isDarkModeEnabled: true },

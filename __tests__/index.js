@@ -169,7 +169,7 @@ test("Delete a contact", async () => {
 	);
 });
 
-test("Auto-pagination with autoPagingEach", async () => {
+test("Auto-pagination with autoPaginateEach", async () => {
 	const sidemail = configureSidemail({ apiKey: "123" });
 
 	// Mock three pages of results
@@ -194,7 +194,7 @@ test("Auto-pagination with autoPagingEach", async () => {
 	const result = await sidemail.contacts.list();
 	const collected = [];
 
-	await result.autoPagingEach((contact) => {
+	await result.autoPaginateEach((contact) => {
 		collected.push(contact);
 	});
 
@@ -268,4 +268,14 @@ test("Auto-pagination for email.search", async () => {
 		{ id: "email3" },
 	]);
 	expect(sidemail.email.performApiRequest).toHaveBeenCalledTimes(2);
+});
+
+test("fileToAttachment encodes a Buffer to base64 and sets name", () => {
+	const sidemail = configureSidemail({ apiKey: "123" });
+	const buffer = Buffer.from("hello world");
+	const attachment = sidemail.fileToAttachment("test.txt", buffer);
+	expect(attachment).toEqual({
+		name: "test.txt",
+		content: buffer.toString("base64"),
+	});
 });

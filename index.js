@@ -5,7 +5,7 @@ const https = require("https");
 
 const { version } = require("./package.json");
 
-const { SidemailLocalError, SidemailApiError } = require("./errors");
+const { SidemailError } = require("./errors");
 
 const DEFAULT_HOST = "https://api.sidemail.io";
 const DEFAULT_BASE_PATH = "/v1/";
@@ -20,7 +20,7 @@ function createPaginatedResult(firstPage, fetchPage) {
 		paginationCursorPrev: firstPage.paginationCursorPrev,
 		paginationCursorNext: firstPage.paginationCursorNext,
 
-		async autoPagingEach(callback) {
+		async autoPaginateEach(callback) {
 			let page = firstPage;
 
 			while (true) {
@@ -67,7 +67,7 @@ class ContactMethods {
 
 	async createOrUpdate(contactData) {
 		if (!contactData) {
-			throw new SidemailLocalError(
+			throw new SidemailError(
 				`Missing contact data. First argument must be object with valid contact data.`
 			);
 		}
@@ -77,7 +77,7 @@ class ContactMethods {
 
 	async find({ emailAddress } = {}) {
 		if (!emailAddress) {
-			throw new SidemailLocalError(
+			throw new SidemailError(
 				`Missing emailAddress. First argument must be object containing emailAddress of contact you wish to find.`
 			);
 		}
@@ -107,7 +107,7 @@ class ContactMethods {
 
 	async delete({ emailAddress } = {}) {
 		if (!emailAddress) {
-			throw new SidemailLocalError(
+			throw new SidemailError(
 				`Missing emailAddress. First argument must be object containing emailAddress of contact you wish to delete.`
 			);
 		}
@@ -172,10 +172,13 @@ class ProjectMethods {
 }
 
 class Sidemail {
-	constructor({ apiKey, host = DEFAULT_HOST }) {
+	constructor({
+		apiKey = process.env.SIDEMAIL_API_KEY,
+		host = DEFAULT_HOST,
+	} = {}) {
 		if (!apiKey) {
-			throw new SidemailLocalError(
-				`apiKey missing. First argument must be object containing your Sidemail API key.`
+			throw new SidemailError(
+				`apiKey missing. Provide it as an option or set SIDEMAIL_API_KEY environment variable.`
 			);
 		}
 
@@ -217,7 +220,7 @@ class Sidemail {
 		const contentType = response.headers.get("content-type");
 
 		if (!contentType.includes("application/json")) {
-			throw new SidemailLocalError(
+			throw new SidemailError(
 				`Sidemail API responded with unexpected contentType.`
 			);
 		}
@@ -225,7 +228,10 @@ class Sidemail {
 		const json = await response.json();
 
 		if (!response.ok) {
-			throw new SidemailApiError(json);
+			throw new SidemailError(json.developerMessage, {
+				...json,
+				httpStatus: response.status,
+			});
 		}
 
 		return json;
@@ -238,6 +244,10 @@ class Sidemail {
 	// Deprecated, here only to ensure backwards compatibility
 	async sendMail(...args) {
 		return this.sendEmail(...args);
+	}
+
+	fileToAttachment(name, data) {
+		return { name, content: data.toString("base64") };
 	}
 }
 

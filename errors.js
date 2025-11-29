@@ -1,28 +1,11 @@
-class DomainError extends Error {
-	constructor(message) {
+class SidemailError extends Error {
+	constructor(message, { httpStatus, errorCode, moreInfo } = {}) {
 		super(message);
-		this.name = this.constructor.name;
-		Error.captureStackTrace(this, this.constructor);
-	}
-}
-
-class SidemailLocalError extends DomainError {
-	constructor(message) {
-		super(message);
-	}
-}
-
-class SidemailApiError extends DomainError {
-	constructor({ developerMessage, errorCode, moreInfo }) {
-		super(developerMessage);
-
-		this.developerMessage = developerMessage;
+		this.name = "SidemailError";
 		this.errorCode = errorCode;
 		this.moreInfo = moreInfo;
+		this.httpStatus = httpStatus;
 	}
 }
 
-module.exports = {
-	SidemailLocalError,
-	SidemailApiError,
-};
+module.exports = { SidemailError };
