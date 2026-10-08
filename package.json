@@ -1,6 +1,6 @@
 {
 	"name": "sidemail",
-	"version": "0.2.4",
+	"version": "0.3.0",
 	"description": "Node.js library for the Sidemail API.",
 	"main": "index.js",
 	"repository": {
@@ -18,15 +18,12 @@
 		"transactional",
 		"emails"
 	],
-	"dependencies": {
-		"node-fetch": "^2.7.0"
-	},
 	"files": [
 		"index.js",
 		"errors.js"
 	],
 	"engines": {
-		"node": ">=16.0.0"
+		"node": ">=18.0.0"
 	},
 	"prettier": {
 		"useTabs": true,

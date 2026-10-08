@@ -6,7 +6,7 @@ See the [CHANGELOG](CHANGELOG.md) for version history and updates.
 
 ## Requirements
 
-Node 16 or higher.
+Node 18 or higher.
 
 ## Installation
 
@@ -45,7 +45,7 @@ try {
 	// Response contains email ID
 	console.log(`Email ID '${response.id}' successfully queued for sending!`);
 } catch (err) {
-	// Uh-oh, we have an error! You error handling logic...
+	// Uh-oh, we have an error! Your error handling logic...
 	console.error(err);
 }
 ```
@@ -64,6 +64,44 @@ Learn more about Sidemail API:
 - [See all available API options](https://sidemail.io/docs/send-transactional-emails#discover-all-available-api-parameters)
 - [See all possible errors and error codes](https://sidemail.io/docs/send-transactional-emails#api-errors)
 
+## Network behavior
+
+The SDK uses the native Node.js `fetch` implementation. It does not configure custom HTTP agents or connection headers, so connection pooling stays with Node's default fetch behavior.
+
+If your environment requires custom networking or instrumentation, pass a custom `fetch` implementation:
+
+```javascript
+const sidemail = configureSidemail({
+	apiKey: "xxxxx",
+	fetch: customFetch,
+});
+```
+
+You can also pass transport options to `fetch`. SDK request values such as `method`, `body`, `headers`, and `signal` are still managed by the SDK.
+
+```javascript
+const sidemail = configureSidemail({
+	apiKey: "xxxxx",
+	fetchOptions: {
+		dispatcher: customDispatcher,
+	},
+});
+```
+
+Pass a `signal` as the last argument to cancel or time out an individual request:
+
+```javascript
+await sidemail.email.send(
+	{
+		toAddress: "user@email.com",
+		fromAddress: "you@example.com",
+		subject: "Hello",
+		text: "Hello",
+	},
+	{ signal: AbortSignal.timeout(5000) }
+);
+```
+
 ## Email sending examples
 
 ### Send password reset email template
@@ -76,6 +114,25 @@ await sidemail.sendEmail({
 	templateName: "Password reset",
 	templateProps: { resetUrl: "https://your.app/reset?token=123" },
 });
+```
+
+### Send a batch of emails
+
+```javascript
+await sidemail.sendEmail([
+	{
+		toAddress: "user1@email.com",
+		fromAddress: "you@example.com",
+		subject: "Hello",
+		text: "Hello user 1",
+	},
+	{
+		toAddress: "user2@email.com",
+		fromAddress: "you@example.com",
+		subject: "Hello",
+		text: "Hello user 2",
+	},
+]);
 ```
 
 ### Schedule email delivery
@@ -98,18 +155,17 @@ Useful for dynamic data where you have `n` items that you want to render in emai
 
 ```javascript
 await sidemail.sendEmail({
-    toAddress: "user@email.com",
-    fromName: "Startup name",
-    fromAddress: "your@startup.com",
-    templateName: "Template with dynamic list",
-    templateProps: {
-        list: [
-            { text: "Dynamic list" },
-            { text: "allows you to generate email template content" },
-            { text: "based on template props." },
-        ],
-    }
-}
+	toAddress: "user@email.com",
+	fromName: "Startup name",
+	fromAddress: "your@startup.com",
+	templateName: "Template with dynamic list",
+	templateProps: {
+		list: [
+			{ text: "Dynamic list" },
+			{ text: "allows you to generate email template content" },
+			{ text: "based on template props." },
+		],
+	},
 });
 ```
 
@@ -207,6 +263,8 @@ await result.autoPaginateEach(async (contact) => {
 
 - `sidemail.contacts.list()`
 - `sidemail.email.search()`
+- `sidemail.templates.list()`
+- `sidemail.inbound.emails.list()`
 
 ## Email methods
 
@@ -227,6 +285,19 @@ console.log("Found emails:", result.data);
 console.log("Has more:", result.hasMore);
 ```
 
+### Validate an email address
+
+Checks an email address without sending an email.
+
+```javascript
+const response = await sidemail.email.validate({
+	email: "user@example.com",
+	isDeep: false,
+});
+
+console.log(response.results[0].valid);
+```
+
 ### Retrieve a specific email
 
 Retrieves the email data. You need only supply the email ID.
@@ -238,7 +309,7 @@ console.log("Email data:", response.email);
 
 ### Delete a scheduled email
 
-Permanently deletes an email. It cannot be undone. Only scheduled emails which are yet to be send can be deleted.
+Permanently deletes an email. It cannot be undone. Only scheduled emails which are yet to be sent can be deleted.
 
 ```javascript
 const response = await sidemail.email.delete("SIDEMAIL_EMAIL_ID");
@@ -262,7 +333,7 @@ try {
 
 	console.log(`Contact was '${response.status}'.`);
 } catch (err) {
-	// Uh-oh, we have an error! You error handling logic...
+	// Uh-oh, we have an error! Your error handling logic...
 	console.error(err);
 }
 ```
@@ -287,12 +358,122 @@ console.log(result.hasMore); // boolean if more data
 console.log(result.paginationCursorNext); // cursor for next page
 ```
 
+### Query contacts
+
+Retrieves contacts with advanced filters and pagination.
+
+```javascript
+const response = await sidemail.contacts.query({
+	search: "@example.com",
+	isSubscribed: true,
+	limit: 20,
+});
+
+console.log(response.data);
+console.log(response.totalCount);
+```
+
 ### Delete a contact
 
 ```javascript
 const response = await sidemail.contacts.delete({
 	emailAddress: "marry@lightning.com",
 });
+```
+
+## Template methods
+
+### List templates
+
+```javascript
+const result = await sidemail.templates.list({
+	limit: 100,
+	includeContent: false,
+});
+```
+
+### Retrieve a template
+
+```javascript
+const response = await sidemail.templates.get("SIDEMAIL_TEMPLATE_ID");
+```
+
+### Create a template
+
+```javascript
+const response = await sidemail.templates.create({
+	name: "Welcome",
+	subject: "Welcome to {project_name}",
+	content: [{ type: "text", text: "Hello!" }],
+});
+```
+
+### Update a template
+
+```javascript
+await sidemail.templates.update("SIDEMAIL_TEMPLATE_ID", {
+	subject: "Welcome, {first_name}",
+});
+```
+
+### List gallery templates and fonts
+
+```javascript
+const gallery = await sidemail.templates.gallery();
+const fonts = await sidemail.templates.fonts();
+```
+
+## Domain methods
+
+### List sending domains
+
+```javascript
+const response = await sidemail.domains.list();
+```
+
+### Create a sending domain
+
+```javascript
+const response = await sidemail.domains.create({
+	domain: "example.com",
+});
+```
+
+### Delete a sending domain
+
+```javascript
+await sidemail.domains.delete("SIDEMAIL_DOMAIN_ID");
+```
+
+## Inbound methods
+
+### Manage inbound routes
+
+```javascript
+const routes = await sidemail.inbound.routes.list();
+
+const created = await sidemail.inbound.routes.create({
+	domain: "example.com",
+	localPart: "*",
+	responseMode: "accept",
+	isEnabled: true,
+});
+
+await sidemail.inbound.routes.update("SIDEMAIL_INBOUND_ROUTE_ID", {
+	isEnabled: false,
+});
+
+await sidemail.inbound.routes.delete("SIDEMAIL_INBOUND_ROUTE_ID");
+```
+
+### List and retrieve inbound emails
+
+```javascript
+const result = await sidemail.inbound.emails.list({
+	limit: 20,
+});
+
+const email = await sidemail.inbound.emails.get("SIDEMAIL_RECEIVED_EMAIL_ID");
 ```
 
 ## Project methods

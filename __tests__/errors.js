@@ -21,4 +21,10 @@ describe("SidemailError", () => {
 		expect(error.httpStatus).toBeUndefined();
 		expect(error.errorCode).toBeUndefined();
 	});
+
+	test("Preserves wrapped errors", () => {
+		const cause = new Error("Premature close");
+		const error = new SidemailError("Request failed", { cause });
+		expect(error.cause).toBe(cause);
+	});
 });
